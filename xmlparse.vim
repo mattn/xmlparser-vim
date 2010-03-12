@@ -1,12 +1,8 @@
-function! ParseXml(xml)
+function! s:ParseTree(xml)
   let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
   let str = a:xml
   let nodes = []
 
-  let is_top = 0
-  if matchstr(str, mx) =~ '^<?'
-    let is_top = 1
-  endif
   while len(str) > 0
     let match = matchstr(str, mx)
     if len(match) == 0
@@ -14,11 +10,11 @@ function! ParseXml(xml)
     endif
     let tag = substitute(match, mx, '\1', 'i')
     let node = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
-    let tag_mx = '<\([a-zA-Z][a-zA-Z0-9_]*\)\(\%(\s[a-zA-Z][a-zA-Z0-9_]\+=\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
+    let tag_mx = '<\([^ \t\r\n/>]*\)\(\%(\s*[^ \t\r\n=]\+\s*=\s*\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
     let tag_match = matchstr(tag, tag_mx)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
     let attrs = substitute(tag_match, tag_mx, '\2', 'i')
-    let attr_mx = '\([a-zA-Z0-9_:]\+\)=["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
+    let attr_mx = '\([^ \t\r\n=]\+\)\s*=\s*["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
     while len(attrs) > 0
       let tag_match = matchstr(attrs, attr_mx)
       if len(tag_match) == 0
@@ -41,10 +37,10 @@ function! ParseXml(xml)
     if len(node.name) > 0
       call add(nodes, node)
       if match !~ '\/>$'
-        let rest = matchstr(str, '</'.node.name.'[^>]*>')
-        let inner = str[:stridx(str, rest)-1]
+        let pair = matchstr(str, '</'.node.name.'[^>]*>')
+        let inner = str[:stridx(str, pair)-1]
         let inner = inner[stridx(str, match) + len(match):]
-		let child = ParseXml(inner)
+		let child = s:ParseTree(inner)
 		if len(child)
           let node.child = child
         else
@@ -58,15 +54,20 @@ function! ParseXml(xml)
           let inner = substitute(inner, '&amp;', '\&', 'g')
           let node.value = inner
         endif
-        let str = str[stridx(str, inner) + len(inner):]
+		if len(inner)
+          let str = str[stridx(str, inner) + len(inner):-len(pair)]
+        else
+		  let str = ''
+        endif
         continue
       endif
     endif
     let str = str[stridx(str, match) + len(match):]
   endwhile
-  if is_top
-    return nodes[0]
-  else
-    return nodes
-  endif
+  return nodes
+endfunction
+
+function! ParseXml(xml)
+  let nodes = s:ParseTree(a:xml)
+  return nodes[0]
 endfunction
