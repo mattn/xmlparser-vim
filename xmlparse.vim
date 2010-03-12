@@ -74,4 +74,7 @@ if exists('g:xmlparse_debug')
   unlet! doc
   let doc = s:parseXml(xml)
   echo loc.'''s current weather is '.doc.find('weather').find('current_conditions').find('condition').attr['data']
+
+  " 2010/03/12 11:15:00 JST
+  " Osaka's current weather is Clear
 endif
