@@ -1,5 +1,5 @@
-function! s:parseXml(xml)
-  let mx = '^\%(\s*\)\(<?\{0,1}[^>]\+>\)'
+function! ParseXml(xml)
+  let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
   let str = a:xml
   let nodes = []
 
@@ -18,7 +18,7 @@ function! s:parseXml(xml)
     let tag_match = matchstr(tag, tag_mx)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
     let attrs = substitute(tag_match, tag_mx, '\2', 'i')
-    let attr_mx = '\([a-zA-Z0-9_]\+\)=["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
+    let attr_mx = '\([a-zA-Z0-9_:]\+\)=["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
     while len(attrs) > 0
       let tag_match = matchstr(attrs, attr_mx)
       if len(tag_match) == 0
@@ -44,7 +44,20 @@ function! s:parseXml(xml)
         let rest = matchstr(str, '</'.node.name.'[^>]*>')
         let inner = str[:stridx(str, rest)-1]
         let inner = inner[stridx(str, match) + len(match):]
-        let node.child = s:parseXml(inner)
+		let child = ParseXml(inner)
+		if len(child)
+          let node.child = child
+        else
+          let inner = substitute(inner, '&gt;', '>', 'g')
+          let inner = substitute(inner, '&lt;', '<', 'g')
+          let inner = substitute(inner, '&quot;', '"', 'g')
+          let inner = substitute(inner, '&apos;', "'", 'g')
+          let inner = substitute(inner, '&nbsp;', ' ', 'g')
+          let inner = substitute(inner, '&yen;', '\&#65509;', 'g')
+          let inner = substitute(inner, '&#\(\d\+\);', '\=s:nr2enc_char(submatch(1))', 'g')
+          let inner = substitute(inner, '&amp;', '\&', 'g')
+          let node.value = inner
+        endif
         let str = str[stridx(str, inner) + len(inner):]
         continue
       endif
@@ -57,24 +70,3 @@ function! s:parseXml(xml)
     return nodes
   endif
 endfunction
-
-if exists('g:xmlparse_debug')
-  function! s:dump(node, indent)
-    echo repeat(' ',a:indent).a:node.name
-    for attr in keys(a:node.attr)
-      echo repeat(' ',a:indent + 2).'* '.attr.'='.a:node.attr[attr]
-    endfor
-    for child in a:node.child
-      call s:dump(child, a:indent + 4)
-    endfor
-  endfunction
-
-  let loc = 'Osaka'
-  let xml = system('curl -s http://www.google.com/ig/api?weather='.loc)
-  unlet! doc
-  let doc = s:parseXml(xml)
-  echo loc.'''s current weather is '.doc.find('weather').find('current_conditions').find('condition').attr['data']
-
-  " 2010/03/12 11:15:00 JST
-  " Osaka's current weather is Clear
-endif
