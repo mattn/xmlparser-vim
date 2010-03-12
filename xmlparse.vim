@@ -34,6 +34,16 @@ function! s:ParseTree(xml)
       endfor
     endfunction
 
+    function! node.findAll(name) dict
+      let ret = []
+      for c in self.child
+        if c.name == a:name
+          call add(ret, c)
+        endif
+      endfor
+	  return ret
+    endfunction
+
     if len(node.name) > 0
       call add(nodes, node)
       if match !~ '\/>$'
