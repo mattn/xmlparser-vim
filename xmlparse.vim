@@ -1,3 +1,20 @@
+function! s:ToString(node)
+  let xml = '<' . a:node.name
+  for attr in keys(a:node.attr)
+    let xml .= ' ' . attr . '="' . a:node.attr[attr] . '"'
+  endfor
+  if len(a:node.child)
+    let xml .= '>'
+    for child in a:node.child
+      let xml .= s:ToString(child)
+    endfor
+    let xml .= '</' . a:node.name . '>'
+  else
+    let xml .= ' />'
+  endif
+  return xml
+endfunction
+
 function! s:ParseTree(xml)
   let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
   let str = a:xml
@@ -41,8 +58,12 @@ function! s:ParseTree(xml)
           call add(ret, c)
         endif
       endfor
-	  return ret
+      return ret
     endfunction
+
+    function! node.toString() dict
+      return s:ToString(self)
+	endfunction
 
     if len(node.name) > 0
       call add(nodes, node)
@@ -50,8 +71,8 @@ function! s:ParseTree(xml)
         let pair = matchstr(str, '</'.node.name.'[^>]*>')
         let inner = str[:stridx(str, pair)-1]
         let inner = inner[stridx(str, match) + len(match):]
-		let child = s:ParseTree(inner)
-		if len(child)
+        let child = s:ParseTree(inner)
+        if len(child)
           let node.child = child
         else
           let inner = substitute(inner, '&gt;', '>', 'g')
@@ -64,10 +85,10 @@ function! s:ParseTree(xml)
           let inner = substitute(inner, '&amp;', '\&', 'g')
           let node.value = inner
         endif
-		if len(inner)
+        if len(inner)
           let str = str[stridx(str, inner) + len(inner):-len(pair)]
         else
-		  let str = ''
+          let str = ''
         endif
         continue
       endif
@@ -81,3 +102,5 @@ function! ParseXml(xml)
   let nodes = s:ParseTree(a:xml)
   return nodes[0]
 endfunction
+
+" vim:set et
