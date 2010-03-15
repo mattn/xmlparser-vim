@@ -8,12 +8,41 @@ function! s:ToString(node)
     for child in a:node.child
       let xml .= s:ToString(child)
     endfor
+	let xml .= a:node.value
+    let xml .= '</' . a:node.name . '>'
+  elseif len(a:node.value)
+	let xml .= '>' . a:node.value
     let xml .= '</' . a:node.name . '>'
   else
     let xml .= ' />'
   endif
   return xml
 endfunction
+
+function! s:Find(node, name)
+  for child in node.child
+    if child.name == a:name
+      return child
+    endif
+	unlet! ret
+	let ret = s:Find(child, a:name)
+	if type(ret) == 4
+      return ret
+	endif
+  endfor
+endfunction
+
+function! s:FindAll(node, name)
+  let ret = []
+  for child in a:node.child
+    if child.name == a:name
+      call add(ret, child)
+    endif
+	let ret += s:FindAll(child, a:name)
+  endfor
+  return ret
+endfunction
+let s:toString = function('s:ToString')
 
 function! s:ParseTree(xml)
   let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
@@ -44,22 +73,12 @@ function! s:ParseTree(xml)
     endwhile
 
     function! node.find(name) dict
-      for c in self.child
-        if c.name == a:name
-          return c
-        endif
-      endfor
-    endfunction
+      return s:Find(self, a:name)
+	endfunction
 
     function! node.findAll(name) dict
-      let ret = []
-      for c in self.child
-        if c.name == a:name
-          call add(ret, c)
-        endif
-      endfor
-      return ret
-    endfunction
+      return s:FindAll(self, a:name)
+	endfunction
 
     function! node.toString() dict
       return s:ToString(self)
