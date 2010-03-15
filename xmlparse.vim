@@ -5,15 +5,13 @@ function! s:template.find(name) dict
     if c.name == a:name
       return c
     endif
+	"unlet! ret
+	"let ret = c.find(a:name)
+	"if type(ret) == 4
+    "  return ret
+	"endif
   endfor
-"  for c in self.child
-"	unlet! ret
-"	let ret = c.find(a:name)
-"	if type(ret) == 4
-"      return ret
-"	endif
-"  endfor
-"  return {}
+  return {}
 endfunction
 
 function! s:template.findAll(name) dict
@@ -25,6 +23,20 @@ function! s:template.findAll(name) dict
 	"let ret += child.findAll(a:name)
   endfor
   return ret
+endfunction
+
+function! s:template.selectSingleNode(name) dict
+  for c in self.child
+    if c.name == a:name
+      return c
+    endif
+	unlet! ret
+	let ret = c.find(a:name)
+	if type(ret) == 4
+      return ret
+	endif
+  endfor
+  return {}
 endfunction
 
 function! s:template.toString() dict
