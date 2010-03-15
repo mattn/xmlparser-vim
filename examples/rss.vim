@@ -1,4 +1,4 @@
-so ../xmlparse.vim
+exec 'so '.expand('<sfile>:h').'/../xmlparse.vim'
 
 let xml = system('curl -s http://mattn.kaoriya.net/index.rss')
 let xml = iconv(xml, 'utf-8', &encoding)

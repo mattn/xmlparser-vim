@@ -1,4 +1,4 @@
-so ../xmlparse.vim
+exec 'so '.expand('<sfile>:h').'/../xmlparse.vim'
 
 function! s:dump(node, indent)
   echo repeat(' ',a:indent).a:node.name

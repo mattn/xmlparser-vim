@@ -1,4 +1,4 @@
-so ../xmlparse.vim
+exec 'so '.expand('<sfile>:h').'/../xmlparse.vim'
 
 let loc = 'Osaka'
 let xml = system('curl -s http://www.google.com/ig/api?weather='.loc)
