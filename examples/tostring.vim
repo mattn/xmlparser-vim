@@ -4,8 +4,7 @@ scriptencoding utf-8
 let xml = iconv(join(filter(split(substitute(join(readfile(expand('<sfile>')), "\n"), '.*\nfinish\n', '', ''), '\n', 1), "v:val !~ '^\"'"), "\n"), 'utf-8', &encoding)
 silent unlet! doc
 let doc = ParseXml(xml)
-echo doc.toString()
-echo len(doc.findAll("りんご"))
+echo doc.findAll("りんご")
 
 finish
 <くだもの>
