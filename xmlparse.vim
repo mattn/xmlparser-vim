@@ -1,48 +1,50 @@
-function! s:ToString(node)
-  let xml = '<' . a:node.name
-  for attr in keys(a:node.attr)
-    let xml .= ' ' . attr . '="' . a:node.attr[attr] . '"'
+let s:template = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
+
+function! s:template.find(name) dict
+  for child in self.child
+    if child.name == a:name
+      return child
+    endif
+	unlet! ret
+	let ret = child.find(a:name)
+	if type(ret) == 4
+      return ret
+	endif
   endfor
-  if len(a:node.child)
+  return {}
+endfunction
+
+function! s:template.findAll(name) dict
+  let ret = []
+  for child in self.child
+    if child.name == a:name
+      call add(ret, child)
+    endif
+	let ret += child.findAll(a:name)
+  endfor
+  return ret
+endfunction
+
+function! s:template.toString() dict
+  let xml = '<' . self.name
+  for attr in keys(self.attr)
+    let xml .= ' ' . attr . '="' . self.attr[attr] . '"'
+  endfor
+  if len(self.child)
     let xml .= '>'
-    for child in a:node.child
-      let xml .= s:ToString(child)
+    for child in self.child
+      let xml .= child.toString()
     endfor
-	let xml .= a:node.value
-    let xml .= '</' . a:node.name . '>'
-  elseif len(a:node.value)
-	let xml .= '>' . a:node.value
-    let xml .= '</' . a:node.name . '>'
+	let xml .= self.value
+    let xml .= '</' . self.name . '>'
+  elseif len(self.value)
+	let xml .= '>' . self.value
+    let xml .= '</' . self.name . '>'
   else
     let xml .= ' />'
   endif
   return xml
 endfunction
-
-function! s:Find(node, name)
-  for child in node.child
-    if child.name == a:name
-      return child
-    endif
-	unlet! ret
-	let ret = s:Find(child, a:name)
-	if type(ret) == 4
-      return ret
-	endif
-  endfor
-endfunction
-
-function! s:FindAll(node, name)
-  let ret = []
-  for child in a:node.child
-    if child.name == a:name
-      call add(ret, child)
-    endif
-	let ret += s:FindAll(child, a:name)
-  endfor
-  return ret
-endfunction
-let s:toString = function('s:ToString')
 
 function! s:ParseTree(xml)
   let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
@@ -55,7 +57,7 @@ function! s:ParseTree(xml)
       break
     endif
     let tag = substitute(match, mx, '\1', 'i')
-    let node = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
+    let node = copy(s:template)
     let tag_mx = '<\([^ \t\r\n/>]*\)\(\%(\s*[^ \t\r\n=]\+\s*=\s*\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
     let tag_match = matchstr(tag, tag_mx)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
@@ -71,18 +73,6 @@ function! s:ParseTree(xml)
       let node.attr[name] = value
       let attrs = attrs[stridx(attrs, tag_match) + len(tag_match):]
     endwhile
-
-    function! node.find(name) dict
-      return s:Find(self, a:name)
-	endfunction
-
-    function! node.findAll(name) dict
-      return s:FindAll(self, a:name)
-	endfunction
-
-    function! node.toString() dict
-      return s:ToString(self)
-	endfunction
 
     if len(node.name) > 0
       call add(nodes, node)
