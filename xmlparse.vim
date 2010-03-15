@@ -1,5 +1,54 @@
 let s:template = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
 
+function! l:ch2hex(ch)
+  let result = ''
+  let i = 0
+  while i < strlen(a:ch)
+    let hex = AL_nr2hex(char2nr(a:ch[i]))
+    let result = result.'%'.(strlen(hex) < 2 ? '0' : '').hex
+    let i = i + 1
+  endwhile
+  return result
+endfunction
+
+function! s:UrlEncode(str)
+  let retval = a:str
+  let retval = substitute(retval, '[^- *.0-9A-Za-z]', '\=l:ch2hex(submatch(0))', 'g')
+  let retval = substitute(retval, ' ', '+', 'g')
+  return retval
+endfunction
+
+function! s:UrlDecode(str)
+  let retval = a:str
+  let retval = substitute(retval, '+', ' ', 'g')
+  let retval = substitute(retval, '%\(\x\x\)', '\=nr2char("0x".submatch(1))', 'g')
+  return retval
+endfunction
+
+function! s:DecodeEntityReference(str)
+  let str = a:str
+  let str = substitute(str, '&gt;', '>', 'g')
+  let str = substitute(str, '&lt;', '<', 'g')
+  let str = substitute(str, '&quot;', '"', 'g')
+  let str = substitute(str, '&apos;', "'", 'g')
+  let str = substitute(str, '&nbsp;', ' ', 'g')
+  let str = substitute(str, '&yen;', '\&#65509;', 'g')
+  let str = substitute(str, '&#\(\d\+\);', '\=s:nr2enc_char(submatch(1))', 'g')
+  let str = substitute(str, '&amp;', '\&', 'g')
+  return str
+endfunction
+
+function! s:EncodeEntityReference(str)
+  let str = a:str
+  let str = substitute(str, '&', '\&amp;', 'g')
+  let str = substitute(str, '>', '&gt;', 'g')
+  let str = substitute(str, '<', '&lt;', 'g')
+  let str = substitute(str, '"', '&quot;', 'g')
+  let str = substitute(str, "'", '&apos;', 'g')
+  let str = substitute(str, ' ', '&nbsp;', 'g')
+  return str
+endfunction
+
 function! s:template.find(name) dict
   for c in self.child
     if c.name == a:name
@@ -49,10 +98,10 @@ function! s:template.toString() dict
     for child in self.child
       let xml .= child.toString()
     endfor
-	let xml .= self.value
+	let xml .= s:EncodeEntityReference(self.value)
     let xml .= '</' . self.name . '>'
   elseif len(self.value)
-	let xml .= '>' . self.value
+	let xml .= '>' . s:EncodeEntityReference(self.value)
     let xml .= '</' . self.name . '>'
   else
     let xml .= ' />'
