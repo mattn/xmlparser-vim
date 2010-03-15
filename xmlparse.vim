@@ -1,26 +1,28 @@
 let s:template = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
 
 function! s:template.find(name) dict
-  for child in self.child
-    if child.name == a:name
-      return child
+  for c in self.child
+    if c.name == a:name
+      return c
     endif
-	unlet! ret
-	let ret = child.find(a:name)
-	if type(ret) == 4
-      return ret
-	endif
   endfor
-  return {}
+"  for c in self.child
+"	unlet! ret
+"	let ret = c.find(a:name)
+"	if type(ret) == 4
+"      return ret
+"	endif
+"  endfor
+"  return {}
 endfunction
 
 function! s:template.findAll(name) dict
   let ret = []
-  for child in self.child
-    if child.name == a:name
-      call add(ret, child)
+  for c in self.child
+    if c.name == a:name
+      call add(ret, c)
     endif
-	let ret += child.findAll(a:name)
+	"let ret += child.findAll(a:name)
   endfor
   return ret
 endfunction
@@ -57,7 +59,7 @@ function! s:ParseTree(xml)
       break
     endif
     let tag = substitute(match, mx, '\1', 'i')
-    let node = copy(s:template)
+    let node = deepcopy(s:template)
     let tag_mx = '<\([^ \t\r\n/>]*\)\(\%(\s*[^ \t\r\n=]\+\s*=\s*\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
     let tag_match = matchstr(tag, tag_mx)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
