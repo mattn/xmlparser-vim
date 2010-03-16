@@ -110,12 +110,17 @@ function! s:template.toString() dict
 endfunction
 
 function! s:ParseTree(ctx)
-  let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
   let nodes = []
   let node = {}
   let last = {}
   let pos = 0
 
+  let mx = '^\s*\(<?xml[^>]\+>\)'
+  if a:ctx['xml'] =~ mx
+    let match = matchstr(a:ctx['xml'], mx)
+	let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], match) + len(match):]
+  endif
+  let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
   while len(a:ctx['xml']) > 0
     let match = matchstr(a:ctx['xml'], mx)
     if len(match) == 0
