@@ -118,7 +118,14 @@ function! s:ParseTree(ctx)
   let mx = '^\s*\(<?xml[^>]\+>\)'
   if a:ctx['xml'] =~ mx
     let match = matchstr(a:ctx['xml'], mx)
-	let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], match) + len(match):]
+    let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], match) + len(match):]
+    let mx = 'encoding\s*=\s*["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
+    let match = matchstr(match, mx)
+	let encoding = substitute(match, mx, '\1', '')
+	if len(encoding) && len(a:ctx['encoding']) == 0
+      let a:ctx['encoding'] = encoding
+	  let a:ctx['xml'] = iconv(a:ctx['xml'], encoding, &encoding)
+    endif
   endif
   let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
   while len(a:ctx['xml']) > 0
@@ -154,7 +161,7 @@ function! s:ParseTree(ctx)
         let pair = matchstr(a:ctx['xml'], '</'.node.name.'[^>]*>')
         let inner = a:ctx['xml'][:stridx(a:ctx['xml'], pair)-1]
         let inner = inner[stridx(a:ctx['xml'], match) + len(match):]
-		let cctx = {'xml': inner}
+		let cctx = {'xml': inner, 'encoding': a:ctx['encoding']}
         let child = s:ParseTree(cctx)
 		let node.value = cctx.xml
         let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match) + len(inner) + len(pair):]
@@ -181,7 +188,7 @@ function! s:ParseTree(ctx)
 endfunction
 
 function! ParseXml(xml)
-  let nodes = s:ParseTree({"xml": a:xml})
+  let nodes = s:ParseTree({'xml': a:xml, 'encoding': ''})
   return nodes[0]
 endfunction
 

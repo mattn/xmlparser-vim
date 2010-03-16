@@ -1,5 +1,4 @@
 exec 'so '.expand('<sfile>:h').'/../xmlparse.vim'
-scriptencoding utf-8
 
 function! s:dump(node, indent)
   echo repeat(' ',a:indent).a:node.name
@@ -14,12 +13,13 @@ function! s:dump(node, indent)
   endif
 endfunction
 
-let xml = iconv(join(filter(split(substitute(join(readfile(expand('<sfile>')), "\n"), '.*\nfinish\n', '', ''), '\n', 1), "v:val !~ '^\"'"), "\n"), 'utf-8', &encoding)
+let xml = join(filter(split(substitute(join(readfile(expand('<sfile>')), "\n"), '.*\nfinish\n', '', ''), '\n', 1), "v:val !~ '^\"'"), "\n")
 silent unlet! doc
 let doc = ParseXml(xml)
-call s:dump(doc.find('部類'), 0)
+call s:dump(doc.find("\x95\x94\x97\xde"), 0)
 
 finish
+<?xml encoding="utf-8" ?>
 <くだもの>
 	<部類>
 	<みかん 種類="ミカン科1" 産地="和歌山1">
