@@ -1,4 +1,4 @@
-let s:template = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
+let s:template = { 'name': '', 'attr': {}, 'child': [] }
 
 function! s:nr2byte(nr)
   if a:nr < 0x80
@@ -74,11 +74,34 @@ function! s:encodeEntityReference(str)
   return str
 endfunction
 
+function! s:template.childNodes() dict
+  let ret = []
+  for c in self.child
+    if type(c) == 4
+      let ret += [c]
+    endif
+    unlet c
+  endfor
+  return ret
+endfunction
+
+function! s:template.value() dict
+  let ret = ''
+  for c in self.child
+    if type(c) == 1
+      let ret .= c
+    endif
+    unlet c
+  endfor
+  return ret
+endfunction
+
 function! s:template.find(name) dict
   for c in self.child
     if type(c) == 4 && c.name == a:name
       return c
     endif
+    " TODO: XPath
     "unlet! ret
     "let ret = c.find(a:name)
     "if type(ret) == 4
@@ -95,24 +118,11 @@ function! s:template.findAll(name) dict
     if type(c) == 4 && c.name == a:name
       call add(ret, c)
     endif
+    " TODO: XPath
     "let ret += c.findAll(a:name)
     unlet c
   endfor
   return ret
-endfunction
-
-function! s:template.selectSingleNode(name) dict
-  for c in self.child
-    if c.name == a:name
-      return c
-    endif
-    unlet! ret
-    let ret = c.find(a:name)
-    if type(ret) == 4
-      return ret
-    endif
-  endfor
-  return {}
 endfunction
 
 function! s:template.toString() dict
@@ -126,11 +136,10 @@ function! s:template.toString() dict
       if type(c) == 4
         let xml .= c.toString()
       else
-        let xml .= c
+        let xml .= s:encodeEntityReference(string(c))
       endif
       unlet c
     endfor
-    let xml .= s:encodeEntityReference(self.value)
     let xml .= '</' . self.name . '>'
   elseif len(self.value)
     let xml .= '>' . s:encodeEntityReference(self.value)

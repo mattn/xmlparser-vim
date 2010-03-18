@@ -5,7 +5,7 @@ silent unlet! doc
 let doc = ParseXml(xml)
 
 for item in doc.find('channel').findAll('item')
-  echo item.find('title').value
-  echo item.find('link').value
+  echo item.find('title').value()
+  echo item.find('link').value()
   echo "\n"
 endfor
