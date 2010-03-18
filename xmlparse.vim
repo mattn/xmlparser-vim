@@ -151,9 +151,8 @@ function! s:template.toString() dict
 endfunction
 
 function! s:ParseTree(ctx, top)
-  let parent = a:top
   let node = a:top
-  let stack = []
+  let stack = [a:top]
   let pos = 0
 
   let mx = '^\s*\(<?xml[^>]\+>\)'
@@ -179,18 +178,16 @@ function! s:ParseTree(ctx, top)
 
     let tag_name = substitute(tag_match, tag_mx, '\1', 'i')
     if tag_name[0] == '/'
-      call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
-      call remove(stack, -1)
-      if len(stack) == 0
-        let parent = a:top
-      else
-        let parent = stack[-1]
+      let pos = stridx(a:ctx['xml'], tag_match)
+      if pos > 0
+        call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
       endif
+      call remove(stack, -1)
       let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
       continue
     endif
 
-    call add(parent.child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
+    call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
 
     let node = deepcopy(s:template)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
@@ -207,10 +204,9 @@ function! s:ParseTree(ctx, top)
       let attrs = attrs[stridx(attrs, attr_match) + len(attr_match):]
     endwhile
 
-    call add(parent.child, node)
+    call add(stack[-1].child, node)
     if tag_match[-2:] != '/>'
       call add(stack, node)
-      let parent = node
     endif
     let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
   endwhile
