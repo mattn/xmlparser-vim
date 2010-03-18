@@ -1,31 +1,56 @@
 let s:template = { 'name': '', 'attr': {}, 'child': [], 'value': '' }
 
-function! l:ch2hex(ch)
-  let result = ''
+function! s:nr2byte(nr)
+  if a:nr < 0x80
+    return nr2char(a:nr)
+  elseif a:nr < 0x800
+    return nr2char(a:nr/64+192).nr2char(a:nr%64+128)
+  else
+    return nr2char(a:nr/4096%16+224).nr2char(a:nr/64%64+128).nr2char(a:nr%64+128)
+  endif
+endfunction
+
+function! s:nr2enc_char(charcode)
+  if &encoding == 'utf-8'
+    return nr2char(a:charcode)
+  endif
+  let char = s:nr2byte(a:charcode)
+  if strlen(char) > 1
+    let char = strtrans(iconv(char, 'utf-8', &encoding))
+  endif
+  return char
+endfunction
+
+function! s:nr2hex(nr)
+  let n = a:nr
+  let r = ""
+  while n
+    let r = '0123456789ABCDEF'[n % 16] . r
+    let n = n / 16
+  endwhile
+  return r
+endfunction
+
+function! s:encodeURIComponent(instr)
+  let instr = iconv(a:instr, &enc, "utf-8")
+  let len = strlen(instr)
   let i = 0
-  while i < strlen(a:ch)
-    let hex = AL_nr2hex(char2nr(a:ch[i]))
-    let result = result.'%'.(strlen(hex) < 2 ? '0' : '').hex
+  let outstr = ''
+  while i < len
+    let ch = instr[i]
+    if ch =~# '[0-9A-Za-z-._~!''()*]'
+      let outstr .= ch
+    elseif ch == ' '
+      let outstr .= '+'
+    else
+      let outstr .= '%' . substitute('0' . s:nr2hex(char2nr(ch)), '^.*\(..\)$', '\1', '')
+    endif
     let i = i + 1
   endwhile
-  return result
+  return outstr
 endfunction
 
-function! s:UrlEncode(str)
-  let retval = a:str
-  let retval = substitute(retval, '[^- *.0-9A-Za-z]', '\=l:ch2hex(submatch(0))', 'g')
-  let retval = substitute(retval, ' ', '+', 'g')
-  return retval
-endfunction
-
-function! s:UrlDecode(str)
-  let retval = a:str
-  let retval = substitute(retval, '+', ' ', 'g')
-  let retval = substitute(retval, '%\(\x\x\)', '\=nr2char("0x".submatch(1))', 'g')
-  return retval
-endfunction
-
-function! s:DecodeEntityReference(str)
+function! s:decodeEntityReference(str)
   let str = a:str
   let str = substitute(str, '&gt;', '>', 'g')
   let str = substitute(str, '&lt;', '<', 'g')
@@ -38,7 +63,7 @@ function! s:DecodeEntityReference(str)
   return str
 endfunction
 
-function! s:EncodeEntityReference(str)
+function! s:encodeEntityReference(str)
   let str = a:str
   let str = substitute(str, '&', '\&amp;', 'g')
   let str = substitute(str, '>', '&gt;', 'g')
@@ -51,14 +76,15 @@ endfunction
 
 function! s:template.find(name) dict
   for c in self.child
-    if c.name == a:name
+    if type(c) == 4 && c.name == a:name
       return c
     endif
-	"unlet! ret
-	"let ret = c.find(a:name)
-	"if type(ret) == 4
+    "unlet! ret
+    "let ret = c.find(a:name)
+    "if type(ret) == 4
     "  return ret
-	"endif
+    "endif
+    unlet c
   endfor
   return {}
 endfunction
@@ -66,10 +92,11 @@ endfunction
 function! s:template.findAll(name) dict
   let ret = []
   for c in self.child
-    if c.name == a:name
+    if type(c) == 4 && c.name == a:name
       call add(ret, c)
     endif
-	"let ret += child.findAll(a:name)
+    "let ret += c.findAll(a:name)
+    unlet c
   endfor
   return ret
 endfunction
@@ -79,11 +106,11 @@ function! s:template.selectSingleNode(name) dict
     if c.name == a:name
       return c
     endif
-	unlet! ret
-	let ret = c.find(a:name)
-	if type(ret) == 4
+    unlet! ret
+    let ret = c.find(a:name)
+    if type(ret) == 4
       return ret
-	endif
+    endif
   endfor
   return {}
 endfunction
@@ -95,13 +122,18 @@ function! s:template.toString() dict
   endfor
   if len(self.child)
     let xml .= '>'
-    for child in self.child
-      let xml .= child.toString()
+    for c in self.child
+      if type(c) == 4
+        let xml .= c.toString()
+      else
+        let xml .= c
+      endif
+      unlet c
     endfor
-	let xml .= s:EncodeEntityReference(self.value)
+    let xml .= s:encodeEntityReference(self.value)
     let xml .= '</' . self.name . '>'
   elseif len(self.value)
-	let xml .= '>' . s:EncodeEntityReference(self.value)
+    let xml .= '>' . s:encodeEntityReference(self.value)
     let xml .= '</' . self.name . '>'
   else
     let xml .= ' />'
@@ -109,10 +141,10 @@ function! s:template.toString() dict
   return xml
 endfunction
 
-function! s:ParseTree(ctx)
-  let nodes = []
-  let node = {}
-  let last = {}
+function! s:ParseTree(ctx, top)
+  let parent = a:top
+  let node = a:top
+  let stack = []
   let pos = 0
 
   let mx = '^\s*\(<?xml[^>]\+>\)'
@@ -121,26 +153,37 @@ function! s:ParseTree(ctx)
     let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], match) + len(match):]
     let mx = 'encoding\s*=\s*["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
     let match = matchstr(match, mx)
-	let encoding = substitute(match, mx, '\1', '')
-	if len(encoding) && len(a:ctx['encoding']) == 0
+    let encoding = substitute(match, mx, '\1', '')
+    if len(encoding) && len(a:ctx['encoding']) == 0
       let a:ctx['encoding'] = encoding
-	  let a:ctx['xml'] = iconv(a:ctx['xml'], encoding, &encoding)
+      let a:ctx['xml'] = iconv(a:ctx['xml'], encoding, &encoding)
     endif
   endif
-  let mx = '^\%([ \t\r\n]*\)\(<?\{0,1}[^>]\+>\)'
+  let mx = '\(<[^>]\+>\)'
+
+  let tag_mx = '<\([^ \t\r\n>]*\)\(\%(\s*[^ \t\r\n=]\+\s*=\s*\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
   while len(a:ctx['xml']) > 0
-    let match = matchstr(a:ctx['xml'], mx)
-    if len(match) == 0
-      break
-    endif
-    let tag = substitute(match, mx, '\1', 'i')
-    let node = deepcopy(s:template)
-    let tag_mx = '<\([^ \t\r\n/>]*\)\(\%(\s*[^ \t\r\n=]\+\s*=\s*\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
-    let tag_match = matchstr(tag, tag_mx)
+    let tag_match = matchstr(a:ctx['xml'], tag_mx)
     if len(tag_match) == 0
-      let node.value = match
       break
     endif
+
+    let tag_name = substitute(tag_match, tag_mx, '\1', 'i')
+    if tag_name[0] == '/'
+      call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
+      call remove(stack, -1)
+      if len(stack) == 0
+        let parent = a:top
+      else
+        let parent = stack[-1]
+      endif
+      let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
+      continue
+    endif
+
+    call add(parent.child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
+
+    let node = deepcopy(s:template)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
     let attrs = substitute(tag_match, tag_mx, '\2', 'i')
     let attr_mx = '\([^ \t\r\n=]\+\)\s*=\s*["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
@@ -155,41 +198,25 @@ function! s:ParseTree(ctx)
       let attrs = attrs[stridx(attrs, attr_match) + len(attr_match):]
     endwhile
 
-    if len(node.name) > 0
-      call add(nodes, node)
-      if match !~ '\/>$'
-        let pair = matchstr(a:ctx['xml'], '</'.node.name.'[^>]*>')
-        let inner = a:ctx['xml'][:stridx(a:ctx['xml'], pair)-1]
-        let inner = inner[stridx(a:ctx['xml'], match) + len(match):]
-		let cctx = {'xml': inner, 'encoding': a:ctx['encoding']}
-        let child = s:ParseTree(cctx)
-		let node.value = cctx.xml
-        let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match) + len(inner) + len(pair):]
-
-        if len(child)
-          let node.child = child
-        else
-          let inner = substitute(inner, '&gt;', '>', 'g')
-          let inner = substitute(inner, '&lt;', '<', 'g')
-          let inner = substitute(inner, '&quot;', '"', 'g')
-          let inner = substitute(inner, '&apos;', "'", 'g')
-          let inner = substitute(inner, '&nbsp;', ' ', 'g')
-          let inner = substitute(inner, '&yen;', '\&#65509;', 'g')
-          let inner = substitute(inner, '&#\(\d\+\);', '\=s:nr2enc_char(submatch(1))', 'g')
-          let inner = substitute(inner, '&amp;', '\&', 'g')
-          let node.value = inner
-        endif
-        continue
-      endif
+    call add(parent.child, node)
+    if tag_match[-2:] != '/>'
+      call add(stack, node)
+      let parent = node
     endif
     let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
   endwhile
-  return nodes
 endfunction
 
 function! ParseXml(xml)
-  let nodes = s:ParseTree({'xml': a:xml, 'encoding': ''})
-  return nodes[0]
+  let top = deepcopy(s:template)
+  call s:ParseTree({'xml': a:xml, 'encoding': ''}, top)
+  for node in top.child
+    if type(node) == 4
+      return node
+    endif
+    unlet node
+  endfor
+  throw "Parse Error"
 endfunction
 
-" vim:set et
+" vim:set et:
