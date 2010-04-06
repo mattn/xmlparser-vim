@@ -169,7 +169,7 @@ function! s:ParseTree(ctx, top)
   endif
   let mx = '\(<[^>]\+>\)'
 
-  let tag_mx = '<\([^ \t\r\n>]*\)\(\%(\s*[^ \t\r\n=]\+\s*=\s*\%([^"'' \t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
+  let tag_mx = '<\([^ \t\r\n>]*\)\(\%(\s*[^ >\t\r\n=]\+\s*=\s*\%([^"'' >\t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
   while len(a:ctx['xml']) > 0
     let tag_match = matchstr(a:ctx['xml'], tag_mx)
     if len(tag_match) == 0
@@ -186,13 +186,15 @@ function! s:ParseTree(ctx, top)
       let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
       continue
     endif
-
-    call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
+    let pos = stridx(a:ctx['xml'], tag_match)
+    if pos > 0
+      call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:pos - 1]))
+    endif
 
     let node = deepcopy(s:template)
     let node.name = substitute(tag_match, tag_mx, '\1', 'i')
     let attrs = substitute(tag_match, tag_mx, '\2', 'i')
-    let attr_mx = '\([^ \t\r\n=]\+\)\s*=\s*["'']\{0,1}\([^"'' \t]\+\|[^"'']\+\)["'']\{0,1}'
+    let attr_mx = '\([^ \t\r\n=]\+\)\s*=\s*["'']\{0,1}\([^"''>\t]\+\)["'']\{0,1}'
     while len(attrs) > 0
       let attr_match = matchstr(attrs, attr_mx)
       if len(attr_match) == 0
