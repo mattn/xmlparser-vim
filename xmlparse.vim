@@ -215,7 +215,7 @@ function! s:ParseTree(ctx, top)
       if pos > 0 && len(stack)
         call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
       endif
-      if len(stack)
+      if len(stack) " TODO: checking whether opened tag is exist. 
         call remove(stack, -1)
       endif
       let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
