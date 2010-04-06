@@ -4,7 +4,7 @@ scriptencoding utf-8
 let xml = join(filter(split(substitute(join(readfile(expand('<sfile>')), "\n"), '.*\nfinish\n', '', ''), '\n', 1), "v:val !~ '^\"'"), "\n")
 silent unlet! doc
 let doc = ParseXml(xml)
-echo doc.find("部類").find("みかん").toString()
+echo doc.childNode("部類").childNode("みかん").toString()
 
 finish
 <?xml encoding="utf-8" ?>

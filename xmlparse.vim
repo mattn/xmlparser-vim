@@ -74,10 +74,39 @@ function! s:encodeEntityReference(str)
   return str
 endfunction
 
-function! s:template.childNodes() dict
+function! s:matchNode(node, cond)
+  if type(a:cond) == 1 && a:node.name == a:cond
+    return 1
+  endif
+  if type(a:cond) == 3
+    let ret = 1
+    for r in a:cond
+      if !s:matchNode(a:node, r) | let ret = 0 | endif
+    endfor
+    return ret
+  endif
+  if type(a:cond) == 4
+    for k in keys(a:cond)
+      if has_key(a:node.attr, k) && a:node.attr[k] == a:cond[k] | return 1 | endif
+    endfor
+  endif
+  return 0
+endfunction
+
+function! s:template.childNode(...) dict
+  for c in self.child
+    if type(c) == 4 && s:matchNode(c, a:000)
+      return c
+    endif
+    unlet c
+  endfor
+  return {}
+endfunction
+
+function! s:template.childNodes(...) dict
   let ret = []
   for c in self.child
-    if type(c) == 4
+    if type(c) == 4 && s:matchNode(c, a:000)
       let ret += [c]
     endif
     unlet c
@@ -96,30 +125,32 @@ function! s:template.value() dict
   return ret
 endfunction
 
-function! s:template.find(name) dict
+function! s:template.find(...) dict
   for c in self.child
-    if type(c) == 4 && c.name == a:name
-      return c
+    if type(c) == 4
+      if s:matchNode(c, a:000)
+        return c
+      endif
+      unlet! ret
+      let ret = c.find(a:000)
+      if !empty(ret)
+        return ret
+      endif
     endif
-    " TODO: XPath
-    "unlet! ret
-    "let ret = c.find(a:name)
-    "if type(ret) == 4
-    "  return ret
-    "endif
     unlet c
   endfor
   return {}
 endfunction
 
-function! s:template.findAll(name) dict
+function! s:template.findAll(...) dict
   let ret = []
   for c in self.child
-    if type(c) == 4 && c.name == a:name
-      call add(ret, c)
+    if type(c) == 4
+      if s:matchNode(c, a:000)
+        call add(ret, c)
+      endif
+      let ret += c.findAll(a:000)
     endif
-    " TODO: XPath
-    "let ret += c.findAll(a:name)
     unlet c
   endfor
   return ret
@@ -181,15 +212,17 @@ function! s:ParseTree(ctx, top)
     let tag_name = substitute(tag_match, tag_mx, '\1', 'i')
     if tag_name[0] == '/'
       let pos = stridx(a:ctx['xml'], tag_match)
-      if pos > 0
+      if pos > 0 && len(stack)
         call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:stridx(a:ctx['xml'], tag_match) - 1]))
       endif
-      call remove(stack, -1)
+      if len(stack)
+        call remove(stack, -1)
+      endif
       let a:ctx['xml'] = a:ctx['xml'][stridx(a:ctx['xml'], tag_match) + len(tag_match):]
       continue
     endif
     let pos = stridx(a:ctx['xml'], tag_match)
-    if pos > 0
+    if pos > 0 && len(stack)
       call add(stack[-1].child, s:decodeEntityReference(a:ctx['xml'][:pos - 1]))
     endif
 
@@ -208,7 +241,9 @@ function! s:ParseTree(ctx, top)
       let attrs = attrs[stridx(attrs, attr_match) + len(attr_match):]
     endwhile
 
-    call add(stack[-1].child, node)
+    if len(stack)
+      call add(stack[-1].child, node)
+    endif
     if tag_match[-2:] != '/>'
       call add(stack, node)
     endif
@@ -218,13 +253,16 @@ endfunction
 
 function! ParseXml(xml)
   let top = deepcopy(s:template)
-  call s:ParseTree({'xml': a:xml, 'encoding': ''}, top)
-  for node in top.child
-    if type(node) == 4
-      return node
-    endif
-    unlet node
-  endfor
+  "try
+    call s:ParseTree({'xml': a:xml, 'encoding': ''}, top)
+    for node in top.child
+      if type(node) == 4
+        return node
+      endif
+      unlet node
+    endfor
+  "catch /.*/
+  "endtry
   throw "Parse Error"
 endfunction
 

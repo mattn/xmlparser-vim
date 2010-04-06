@@ -35,14 +35,14 @@ let null = 0
 silent unlet! doc
 let doc = ParseXml(eval(json)['div'])
 echo "-------------------------------------------------"
-for file in doc.findAll('div')
+for file in doc.childNodes('div')
   unlet! meta
-  let meta = file.findAll('div')
+  let meta = file.childNodes('div')
   if len(meta) > 1
     echo "URL:".meta[1].find('a').attr['href']
   endif
   echo "\n"
-  call s:dump(file.find('div').find('div').find('pre'), '')
+  call s:dump(file.find('pre'), '')
   echo "-------------------------------------------------"
 endfor
 
