@@ -135,8 +135,10 @@ function! s:template.toString() dict
     for c in self.child
       if type(c) == 4
         let xml .= c.toString()
-      else
+      elseif type(c) > 1
         let xml .= s:encodeEntityReference(string(c))
+      else
+        let xml .= s:encodeEntityReference(c)
       endif
       unlet c
     endfor
