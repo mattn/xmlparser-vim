@@ -202,7 +202,7 @@ function! s:ParseTree(ctx, top)
   endif
   let mx = '\(<[^>]\+>\)'
 
-  let tag_mx = '<\([^ \t\r\n>]*\)\(\%(\s*[^ >\t\r\n=]\+\s*=\s*\%([^"'' >\t]\+\|["''][^"'']\+["'']\)\s*\)*\)\s*/*>'
+  let tag_mx = '<\([^ \t\r\n>]*\)\(\%(\s*[^ >\t\r\n=]\+\s*=\s*\%([^"'' >\t]\+\|["''][^"'']*["'']\)\s*\)*\)\s*/*>'
   while len(a:ctx['xml']) > 0
     let tag_match = matchstr(a:ctx['xml'], tag_mx)
     if len(tag_match) == 0
@@ -253,6 +253,8 @@ endfunction
 
 function! ParseXml(xml)
   let top = deepcopy(s:template)
+  let oldmaxmempattern=&maxmempattern
+  let &maxmempattern=2000000
   "try
     call s:ParseTree({'xml': a:xml, 'encoding': ''}, top)
     for node in top.child
@@ -263,6 +265,7 @@ function! ParseXml(xml)
     endfor
   "catch /.*/
   "endtry
+  let &maxmempattern=oldmaxmempattern
   throw "Parse Error"
 endfunction
 
