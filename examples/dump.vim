@@ -27,7 +27,8 @@ endfunction
 
 let xml = join(filter(split(substitute(join(readfile(expand('<sfile>')), "\n"), '.*\nfinish\n', '', ''), '\n', 1), "v:val !~ '^\"'"), "\n")
 silent unlet! doc
-let doc = ParseXml(xml)
+let doc = xmlparser#ParseXml(xml)
+let g:doc = doc
 call s:dump(doc.childNode("部類").find("みかん"), 0)
 call s:dump(doc.childNode("部類").findAll("みかん"), 0)
 call s:dump(doc.childNode("部類").findAll("りんご"), 0)

@@ -3,7 +3,7 @@ scriptencoding utf-8
 
 let xml = join(filter(split(substitute(join(readfile(expand('<sfile>')), "\n"), '.*\nfinish\n', '', ''), '\n', 1), "v:val !~ '^\"'"), "\n")
 silent unlet! doc
-let doc = ParseXml(xml)
+let doc = xmlparser#ParseXml(xml)
 echo doc.find("ようすけ").name
 
 finish
