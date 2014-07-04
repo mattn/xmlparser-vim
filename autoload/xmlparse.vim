@@ -183,7 +183,7 @@ function! s:template.toString() dict
   return xml
 endfunction
 
-function! s:ParseTree(ctx, top)
+function! xmlparse#ParseTree(ctx, top)
   let node = a:top
   let stack = [a:top]
   let pos = 0
@@ -251,12 +251,12 @@ function! s:ParseTree(ctx, top)
   endwhile
 endfunction
 
-function! ParseXml(xml)
+function! xmlparse#ParseXml(xml)
   let top = deepcopy(s:template)
   let oldmaxmempattern=&maxmempattern
   let &maxmempattern=2000000
   "try
-    call s:ParseTree({'xml': a:xml, 'encoding': ''}, top)
+    call xmlparse#ParseTree({'xml': a:xml, 'encoding': ''}, top)
     for node in top.child
       if type(node) == 4
         return node

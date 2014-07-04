@@ -33,7 +33,7 @@ let true = 1
 let false = 0
 let null = 0
 silent unlet! doc
-let doc = ParseXml(eval(json)['div'])
+let doc = xmlparser#ParseXml(eval(json)['div'])
 echo "-------------------------------------------------"
 for file in doc.childNodes('div')
   unlet! meta

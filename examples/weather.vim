@@ -3,7 +3,7 @@ exec 'so '.expand('<sfile>:h').'/../xmlparse.vim'
 let loc = 'Osaka'
 let xml = system('curl -s http://www.google.com/ig/api?weather='.loc)
 unlet! doc
-let doc = ParseXml(xml)
+let doc = xmlparser#ParseXml(xml)
 echo loc.'''s current weather is '.doc.find('current_conditions').childNode('condition').attr['data']
 
 " 2010/03/12 11:15:00 JST
